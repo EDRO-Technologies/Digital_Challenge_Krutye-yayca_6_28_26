@@ -1,5 +1,3 @@
-
-// SchedulePage
 export const ACCENT_COLOR = "#60cbe8";
 
 export const PAIRS = [

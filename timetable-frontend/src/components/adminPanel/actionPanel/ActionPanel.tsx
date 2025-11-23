@@ -58,7 +58,7 @@ const ActionPanel: React.FC<ActionPanelProps> = ({
     }, [classrooms, searchQuery, adminMode]);
 
     return (
-        <div className="flex flex-col h-full bg-white border-l border-gray-200 shadow-lg w-80">
+        <div className="flex flex-col h-full bg-white border-l border-gray-200 shadow-lg w-80 overflow-x-hidden rounded-2xl">
             <div className="p-6 border-b border-gray-100 bg-gray-50">
                 <div className="flex items-center justify-between mb-6">
                     <h2 className="text-xl font-bold text-gray-800">
@@ -108,8 +108,8 @@ const ActionPanel: React.FC<ActionPanelProps> = ({
                                             ...teacher,
                                             id: compositeId,
                                             subject: workItem.subject,
-                                            hoursLeft: workItem.hours,
-                                            totalHours: workItem.hours
+                                            totalHours: workItem.hours,
+                                            hoursLeft: workItem.hoursLeft
                                         }}
                                     />
                                 );

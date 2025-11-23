@@ -1,68 +1,100 @@
 import React from 'react';
-import type {ScheduleMap} from '@/store/useScheduleStore';
+import { useDroppable } from '@dnd-kit/core';
+import { type Lesson } from '@/store/useScheduleStore';
 
 interface MonthGridProps {
-    dates: (Date | null)[];
-    schedule?: ScheduleMap; // Теперь принимаем расписание
-    formatDateKey?: (date: Date) => string;
+    days: Date[];
+    schedule: Record<string, Lesson>;
 }
 
-const WEEK_DAYS = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'];
+// Компонент ячейки дня (Drop Zone) с вашей стилистикой
+const MonthDayCell: React.FC<{
+    day: Date;
+    lessons: Lesson[];
+    formatDateKey: (d: Date) => string;
+}> = ({ day, lessons, formatDateKey }) => {
+    const dateKey = formatDateKey(day);
 
-export const MonthGrid: React.FC<MonthGridProps> = ({ dates, schedule, formatDateKey }) => {
-    const isToday = (d: Date) => d.toDateString() === new Date().toDateString();
-    const fKey = formatDateKey || ((d: Date) => d.toISOString().split('T')[0]);
+    // Сохраняем логику dnd
+    const { setNodeRef, isOver } = useDroppable({
+        id: dateKey,
+        data: { date: day }
+    });
 
-    // Функция для подсчета пар в день
-    const getPairsCount = (date: Date) => {
-        if (!schedule) return 0;
-        const dateStr = fKey(date);
-        // Ищем ключи, которые начинаются с этой даты "YYYY-MM-DD|"
-        return Object.keys(schedule).filter(key => key.startsWith(dateStr)).length;
-    };
+    const isToday = day.toDateString() === new Date().toDateString();
 
     return (
-        <div className="h-full flex flex-col">
-            <div className="grid grid-cols-7 mb-2">
-                {WEEK_DAYS.map(d => (
-                    <div key={d} className="text-center text-gray-400 font-medium uppercase text-sm py-2">{d}</div>
+        <div
+            ref={setNodeRef}
+            className={`
+                bg-white min-h-[120px] p-2 flex flex-col border border-transparent 
+                transition-colors group
+                ${isOver ? 'bg-blue-50 ring-2 ring-blue-200 z-10' : 'hover:bg-gray-50 hover:border-gray-200'}
+            `}
+        >
+            {/* Число (справа вверху, как в дизайне) */}
+            <div className={`
+                self-end text-sm font-bold w-7 h-7 flex items-center justify-center rounded-full mb-1 transition-colors
+                ${isToday ? 'bg-blue-600 text-white shadow-md shadow-blue-200' : 'text-gray-700 group-hover:text-black'}
+            `}>
+                {day.getDate()}
+            </div>
+
+            {/* Список уроков (как в дизайне: синие карточки) */}
+            <div className="flex-1 flex flex-col gap-1 overflow-y-auto custom-scrollbar max-h-[140px]">
+                {lessons.map((lesson, idx) => (
+                    <div key={idx} className="p-1 bg-blue-100 border border-blue-200 rounded text-[10px] text-blue-900 truncate">
+                        <span className="font-bold mr-1">{lesson.teacher.subject}</span>
+                        {lesson.classroom && <span className="opacity-70 ml-1">{lesson.classroom.name}</span>}
+                    </div>
                 ))}
             </div>
-            <div className="grid grid-cols-7 grid-rows-5 gap-2 flex-1">
-                {dates.map((date, i) => {
-                    const count = date ? getPairsCount(date) : 0;
+        </div>
+    );
+};
 
-                    return (
-                        <div
-                            key={i}
-                            className={`
-                rounded-2xl p-2 border min-h-[80px] flex flex-col transition-colors relative
-                ${!date ? 'invisible' : ''}
-                ${date && isToday(date) ? 'border-green-400 bg-green-50' : 'border-gray-100 bg-gray-50 hover:bg-white'}
-              `}
-                        >
-                            {date && (
-                                <>
-                  <span className={`text-sm font-bold mb-1 ${isToday(date) ? 'text-green-700' : 'text-gray-500'}`}>
-                    {date.getDate()}
-                  </span>
+const MonthGrid: React.FC<MonthGridProps> = ({ days, schedule }) => {
+    const currentDate = new Date();
+    const year = currentDate.getFullYear();
+    const month = currentDate.getMonth();
 
-                                    {/* Индикаторы загруженности */}
-                                    {count > 0 && (
-                                        <div className="mt-auto flex gap-1 flex-wrap content-end">
-                                            {/* Рисуем точки по количеству пар (максимум 6) */}
-                                            {Array.from({ length: Math.min(count, 6) }).map((_, idx) => (
-                                                <div key={idx} className="h-1.5 w-1.5 rounded-full bg-green-400" title={`${count} пар`}></div>
-                                            ))}
-                                            {count > 6 && <span className="text-[10px] text-gray-400 leading-none">+</span>}
-                                        </div>
-                                    )}
-                                </>
-                            )}
-                        </div>
-                    );
-                })}
-            </div>
+    // Используем переданные дни или генерируем сами
+    const targetDays = days.length > 0 ? days : Array.from({ length: new Date(year, month + 1, 0).getDate() }, (_, i) => new Date(year, month, i + 1));
+
+    const firstDayIndex = (targetDays[0].getDay() + 6) % 7; // Пн = 0
+
+    const formatDateKey = (date: Date) => date.toISOString().split('T')[0];
+
+    return (
+        <div className="grid grid-cols-7 gap-px bg-gray-100 border border-gray-100 h-full min-h-[600px]">
+            {/* Заголовки (как в дизайне) */}
+            {['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'].map(dayName => (
+                <div key={dayName} className="bg-white py-3 text-center text-xs font-bold text-gray-400 uppercase tracking-wider border-b border-gray-100">
+                    {dayName}
+                </div>
+            ))}
+
+            {/* Пустые ячейки (как в дизайне) */}
+            {Array.from({ length: firstDayIndex }).map((_, i) => (
+                <div key={`empty-${i}`} className="bg-gray-50/30 min-h-[120px]" />
+            ))}
+
+            {/* Дни */}
+            {targetDays.map((day) => {
+                const dateKey = formatDateKey(day);
+                const dayLessons = Object.entries(schedule || {})
+                    .filter(([key]) => key.startsWith(dateKey))
+                    .map(([_, lesson]) => lesson);
+
+                return (
+                    <MonthDayCell
+                        key={dateKey}
+                        day={day}
+                        lessons={dayLessons}
+                        formatDateKey={formatDateKey}
+                    />
+                );
+            })}
         </div>
     );
 };

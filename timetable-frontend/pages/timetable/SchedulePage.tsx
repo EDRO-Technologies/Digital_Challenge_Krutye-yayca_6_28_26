@@ -63,7 +63,6 @@ export default function SchedulePage() {
         loadData();
     }, [searchingItemId]);
 
-    // даты
     const weekStart = startOfWeek(currentDate, { weekStartsOn: 1 });
     const weekDays = Array.from({ length: 6 }).map((_, i) =>
         addDays(weekStart, i),
@@ -104,7 +103,6 @@ export default function SchedulePage() {
                     </div>
                 </div>
 
-                {/* Центр: Переключатель режимов */}
                 <div className="flex bg-gray-100 p-1 rounded-full w-full md:w-auto">
                     <button
                         onClick={() => setViewMode("day")}
@@ -230,7 +228,6 @@ export default function SchedulePage() {
                                     </div>
                                 </div>
 
-                                {/* Сетка пар */}
                                 <div className="flex flex-col gap-3 flex-1">
                                     {PAIRS.map((pair) => {
                                         const daysLessons = schedule.filter(
@@ -297,7 +294,6 @@ export default function SchedulePage() {
                                     key={pair.num}
                                     className="flex gap-4 relative"
                                 >
-                                    {/* Левая колонка: Номер и время */}
                                     <div className="w-16 flex-shrink-0 flex flex-col items-center pt-1">
                                         <span className="text-4xl font-bold text-gray-200 leading-none mb-1">
                                             {pair.num}
@@ -320,7 +316,6 @@ export default function SchedulePage() {
                                         )}
                                     </div>
 
-                                    {/* Таймлайн линия (декоративная) */}
                                     {pair.num !== 6 && (
                                         <div className="absolute left-8 top-12 bottom-[-24px] w-[2px] bg-gray-100 -z-10" />
                                     )}

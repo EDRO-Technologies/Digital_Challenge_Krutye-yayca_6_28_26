@@ -1,155 +1,306 @@
 import { useState, useEffect } from 'react';
-import { DndContext, DragOverlay, useSensor, useSensors, PointerSensor, type DragEndEvent } from '@dnd-kit/core';
-import ActionPanel from "@/components/adminPanel/actionPanel/ActionPanel.tsx";
-import Layout from "./Layout.tsx";
-import ScheduleGrid from "@/components/adminPanel/ScheduleGrid.tsx";
-import ActionCard from "@/components/adminPanel/actionPanel/ActionCard.tsx";
-import { TeacherModal } from "@/components/adminPanel/TeacherModal.tsx";
-import { useScheduleStore, type Teacher } from "@/store/useScheduleStore";
-import { EventModal, type EventFormData } from "@/components/adminPanel/EventModal";
-import { createEvent } from '@/services/supabase/eventService'; // Импорт сервиса
+import {
+    DndContext,
+    DragOverlay,
+    type DragEndEvent,
+    type DragOverEvent,
+    useSensor,
+    useSensors,
+    PointerSensor,
+} from '@dnd-kit/core';
+
+import ActionPanel from '@/components/adminPanel/actionPanel/ActionPanel.tsx';
+import Layout from './Layout.tsx';
+import ScheduleGrid from '@/components/adminPanel/ScheduleGrid.tsx';
+import ActionCard from '@/components/adminPanel/actionPanel/ActionCard.tsx';
+import { TeacherModal } from '@/components/adminPanel/TeacherModal.tsx';
+import { useScheduleStore, type Teacher } from '@/store/useScheduleStore';
+
+// Импорт сервисов
+import { createScheduleLesson, updateScheduleLesson } from '@/services/scheduleApi';
+import { getSubjectIdByName } from '@/services/supabase/subjectService';
+import { getStatusIdByName } from '@/services/supabase/scheduleStatusService';
+
+// Маппинг слотов в время
+const SLOT_TIME_RANGES: Record<number, { start: string; end: string }> = {
+    1: { start: '09:00', end: '10:30' },
+    2: { start: '10:45', end: '12:15' },
+    3: { start: '13:00', end: '14:30' },
+    4: { start: '14:45', end: '16:15' },
+    5: { start: '16:30', end: '18:00' },
+    6: { start: '18:15', end: '19:45' },
+};
 
 export default function AdminPanelPage() {
     const assignLesson = useScheduleStore((state) => state.assignLesson);
+    const teachers = useScheduleStore((state) => state.teachers);
+    const selectedGroupId = useScheduleStore((state) => state.selectedGroupId);
     const fetchTeachers = useScheduleStore((state) => state.fetchTeachers);
     const fetchGroups = useScheduleStore((state) => state.fetchGroups);
     const fetchClassrooms = useScheduleStore((state) => state.fetchClassrooms);
-    const adminMode = useScheduleStore((state) => state.adminMode);
+    const fetchEvents = useScheduleStore((state) => state.fetchEvents);
+    const checkTeacherConflict = useScheduleStore((state) => state.checkTeacherConflict);
 
     useEffect(() => {
         fetchTeachers();
         fetchGroups();
         fetchClassrooms();
-    }, [fetchTeachers, fetchGroups, fetchClassrooms]);
+        fetchEvents();
+    }, []);
 
     const [activeTeacher, setActiveTeacher] = useState<Teacher | null>(null);
+    const [isOverGrid, setIsOverGrid] = useState(false);
+    const [editingLessonId, setEditingLessonId] = useState<number | null>(null);
 
-    const [scheduleModal, setScheduleModal] = useState<{
+    const [modalState, setModalState] = useState<{
         isOpen: boolean;
         date: Date | null;
         slotId: number | null;
         preSelectedTeacherId: string | null;
-        preSelectedSubject: string | null;
+        preSelectedSubjectName: string | null;
     }>({
         isOpen: false,
         date: null,
         slotId: null,
         preSelectedTeacherId: null,
-        preSelectedSubject: null,
+        preSelectedSubjectName: null,
     });
 
-    const [isEventModalOpen, setIsEventModalOpen] = useState(false);
-    const [selectedClassroomId, setSelectedClassroomId] = useState<string | null>(null);
-
     const sensors = useSensors(
-        useSensor(PointerSensor, { activationConstraint: { distance: 8 } })
+        useSensor(PointerSensor, {
+            activationConstraint: { distance: 8 },
+        }),
     );
 
     const handleDragStart = (event: any) => {
-        if (adminMode === 'schedule') {
-            setActiveTeacher(event.active.data.current as Teacher);
-        }
+        setActiveTeacher(event.active.data.current as Teacher);
+        setIsOverGrid(false);
+    };
+
+    const handleDragOver = (event: DragOverEvent) => {
+        const { over } = event;
+        setIsOverGrid(!!over);
     };
 
     const handleDragEnd = (event: DragEndEvent) => {
-        if (adminMode !== 'schedule') return;
-
         const { active, over } = event;
         setActiveTeacher(null);
+        setIsOverGrid(false);
 
-        if (over && active) {
-            const [dateStr, slotStr] = (over.id as string).split('|');
-            const date = new Date(dateStr);
-            const slotId = Number(slotStr);
+        if (!over || !active) return;
 
-            const rawId = active.id as string;
-            const [cleanId, subjectName] = rawId.split('::');
+        const overId = String(over.id);
+        let date: Date;
+        let slotId: number;
 
-            setScheduleModal({
-                isOpen: true,
-                date: date,
-                slotId: slotId,
-                preSelectedTeacherId: cleanId,
-                preSelectedSubject: subjectName || null
-            });
+        if (overId.includes('|')) {
+            const [dateStr, slotStr] = overId.split('|');
+            date = new Date(dateStr);
+            slotId = Number(slotStr);
+        } else {
+            date = new Date(overId);
+            slotId = 1;
         }
+
+        const rawId = String(active.id);
+        const [cleanTeacherId, subjectName] = rawId.split('::');
+
+        const datePart = date.toISOString().split('T')[0];
+        const key = `${datePart}|${slotId}`;
+
+        if (checkTeacherConflict && checkTeacherConflict(key, cleanTeacherId)) {
+            return;
+        }
+
+        setModalState({
+            isOpen: true,
+            date,
+            slotId,
+            preSelectedTeacherId: cleanTeacherId,
+            preSelectedSubjectName: subjectName || null,
+        });
+        setEditingLessonId(null);
     };
 
-    const handleScheduleSave = (teacherId: string, classroomId: string | null) => {
-        if (scheduleModal.date && scheduleModal.slotId) {
-            const key = `${scheduleModal.date.toISOString().split('T')[0]}|${scheduleModal.slotId}`;
-            assignLesson(key, teacherId, classroomId, scheduleModal.preSelectedSubject || undefined);
-            setScheduleModal(prev => ({ ...prev, isOpen: false, preSelectedSubject: null }));
-        }
+    // Создание новой пары через "плюсик" или клик по ячейке
+    const handleModalRequest = (
+        date: Date,
+        slotId: number,
+        preSelectedTeacherId?: string | null,
+    ) => {
+        // Если препод передан (через клик по зелёной ячейке), ищем его, чтобы узнать предмет
+        const teacher = preSelectedTeacherId
+            ? teachers.find(t => String(t.id) === String(preSelectedTeacherId))
+            : null;
+
+        setModalState({
+            isOpen: true,
+            date,
+            slotId,
+            preSelectedTeacherId: preSelectedTeacherId || null,
+            preSelectedSubjectName: teacher ? teacher.subject : null, // <-- ВАЖНО
+        });
+        setEditingLessonId(null);
     };
 
-    // Обработчик создания события
-    const handleEventSave = async (data: EventFormData) => {
+    // Редактирование существующей пары
+    const handleLessonClick = (lesson: any, date: Date, slotId: number) => {
+        setEditingLessonId(Number(lesson.dbId));
+        setModalState({
+            isOpen: true,
+            date,
+            slotId,
+            preSelectedTeacherId: lesson.teacher.id,
+            preSelectedSubjectName: lesson.teacher.subject,
+        });
+    };
+
+    const handleModalSave = async (teacherId: string, classroomId: string | null) => {
+        if (!modalState.date || !modalState.slotId) return;
+
+        if (!selectedGroupId) {
+            alert('Выберите группу!');
+            return;
+        }
+
+        const datePart = modalState.date.toISOString().split('T')[0];
+        const slotRange = SLOT_TIME_RANGES[modalState.slotId];
+        if (!slotRange) return;
+
+        const start_time = `${datePart}T${slotRange.start}:00`;
+        const end_time = `${datePart}T${slotRange.end}:00`;
+        const key = `${datePart}|${modalState.slotId}`;
+
+        if (teacherId === 'clear') {
+            assignLesson(key, 'clear', null);
+
+            if (editingLessonId) {
+                try {
+                    const canceledStatusId = (await getStatusIdByName('Отменена')) || 10;
+                    console.log('Canceling lesson:', editingLessonId, 'Status:', canceledStatusId);
+                    await updateScheduleLesson(editingLessonId, {
+                        id: editingLessonId,
+                        status: canceledStatusId as any,
+                    });
+
+                    const fetchSchedule = useScheduleStore.getState().fetchSchedule;
+                    if (selectedGroupId) {
+                        await fetchSchedule(selectedGroupId);
+                    }
+                    await fetchTeachers();
+
+                } catch (e) {
+                    console.error('Failed to cancel lesson:', e);
+                }
+            }
+
+            setModalState((prev) => ({ ...prev, isOpen: false }));
+            setEditingLessonId(null);
+            return;
+        }
+
+        assignLesson(key, teacherId, classroomId);
+
         try {
-            // Комбинируем дату и время в ISO timestamp
-            const startISO = `${data.date}T${data.startTime}:00`;
-            const endISO = `${data.date}T${data.endTime}:00`;
+            const teacher = teachers.find((t) => t.id === teacherId);
+            if (!teacher) {
+                console.error('Teacher not found:', teacherId);
+                alert('Преподаватель не найден!');
+                return;
+            }
 
-            await createEvent({
-                title: data.title,
-                description: data.description,
-                roomId: data.roomId,
-                startTime: startISO,
-                endTime: endISO,
-            });
+            const subjectName = modalState.preSelectedSubjectName || teacher.subject;
+            console.log('Subject name:', subjectName);
 
-            alert('Мероприятие успешно создано!');
-            // Можно перезагрузить расписание, если нужно отобразить созданное событие
-        } catch (error: any) {
-            throw new Error('Не удалось создать мероприятие: ' + error.message);
+            const subject_id = await getSubjectIdByName(subjectName);
+            console.log('Subject ID:', subject_id);
+
+            if (!subject_id) {
+                console.error('Subject not found:', subjectName);
+                alert(`Предмет "${subjectName}" не найден в базе данных!`);
+                return;
+            }
+
+            if (!classroomId) {
+                console.error('Classroom not selected');
+                alert('Выберите аудиторию!');
+                return;
+            }
+
+            const payload = {
+                subject_id,
+                speaker_id: Number(teacherId),
+                room_id: Number(classroomId),
+                group_id: Number(selectedGroupId),
+                start_time,
+                end_time,
+                title: subjectName,
+            };
+
+            if (editingLessonId) {
+                console.log('Updating lesson:', editingLessonId);
+                await updateScheduleLesson(editingLessonId, {
+                    ...payload,
+                    id: editingLessonId,
+                });
+            } else {
+                console.log('Creating new lesson');
+                await createScheduleLesson(payload);
+            }
+
+            const fetchSchedule = useScheduleStore.getState().fetchSchedule;
+            if (selectedGroupId) {
+                await fetchSchedule(selectedGroupId);
+            }
+
+            await fetchTeachers();
+
+        } catch (e) {
+            console.error('Failed to save lesson on backend', e);
+            alert('Ошибка при сохранении: ' + (e as Error).message);
         }
+
+        setModalState((prev) => ({ ...prev, isOpen: false }));
+        setEditingLessonId(null);
     };
+
 
     return (
-        <Layout>
-            <DndContext
-                sensors={sensors}
-                onDragStart={handleDragStart}
-                onDragEnd={handleDragEnd}
-            >
-                <div className="flex h-[calc(100vh-4rem)]">
-                    <ActionPanel
-                        onCreateEventClick={() => setIsEventModalOpen(true)}
-                        selectedClassroomId={selectedClassroomId}
-                        onSelectClassroom={(id) => setSelectedClassroomId(id === selectedClassroomId ? null : id)}
-                    />
+        <DndContext
+            sensors={sensors}
+            onDragStart={handleDragStart}
+            onDragOver={handleDragOver}
+            onDragEnd={handleDragEnd}
+        >
+            <Layout>
+                <div className="flex h-full gap-4 overflow-hidden max-h-screen">
+                    <ActionPanel />
 
-                    <div className="flex-1 bg-gray-100 overflow-hidden flex flex-col">
-                        <ScheduleGrid />
+                    <div className="flex-1">
+                        <ScheduleGrid
+                            onModalRequest={handleModalRequest}
+                            onLessonClick={handleLessonClick}
+                            activeTeacherId={activeTeacher?.id || null}
+                        />
                     </div>
                 </div>
+            </Layout>
 
-                <DragOverlay>
-                    {activeTeacher ? (
-                        <div className="opacity-90 rotate-3 cursor-grabbing">
-                            <ActionCard teacher={activeTeacher} isOverlay />
-                        </div>
-                    ) : null}
-                </DragOverlay>
+            <DragOverlay>
+                {activeTeacher ? <ActionCard teacher={activeTeacher} /> : null}
+            </DragOverlay>
 
-                {scheduleModal.isOpen && scheduleModal.date && (
-                    <TeacherModal
-                        isOpen={scheduleModal.isOpen}
-                        onClose={() => setScheduleModal(prev => ({ ...prev, isOpen: false }))}
-                        onSave={handleScheduleSave}
-                        currentTeacherId={scheduleModal.preSelectedTeacherId}
-                    />
-                )}
-
-                {isEventModalOpen && (
-                    <EventModal
-                        isOpen={isEventModalOpen}
-                        onClose={() => setIsEventModalOpen(false)}
-                        onSave={handleEventSave}
-                        initialData={selectedClassroomId ? { roomId: selectedClassroomId } : undefined}
-                    />
-                )}
-            </DndContext>
-        </Layout>
+            {modalState.isOpen && modalState.date && (
+                <TeacherModal
+                    selection={{ date: modalState.date, slotId: modalState.slotId! }}
+                    onClose={() => {
+                        setModalState((prev) => ({ ...prev, isOpen: false }));
+                        setEditingLessonId(null);
+                    }}
+                    onSave={handleModalSave}
+                    initialTeacherId={modalState.preSelectedTeacherId}
+                />
+            )}
+        </DndContext>
     );
 }

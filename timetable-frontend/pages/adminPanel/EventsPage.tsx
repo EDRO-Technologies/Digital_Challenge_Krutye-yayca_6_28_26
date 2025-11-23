@@ -10,7 +10,7 @@ import {
 
 import Layout from './Layout';
 import ActionPanel from "@/components/adminPanel/actionPanel/ActionPanel";
-import ClassroomCard from "@/components/adminPanel/actionPanel/ClassroomCard"; // Для оверлея
+import ClassroomCard from "@/components/adminPanel/actionPanel/ClassroomCard";
 import { ScheduleHeader } from '@/components/adminPanel/ScheduleHeader';
 import TimeGrid from '@/components/adminPanel/TimeGrid';
 import { EventModal } from '@/components/adminPanel/EventModal';
@@ -31,11 +31,9 @@ export default function EventsPage() {
     const [currentDate, setCurrentDate] = useState(new Date());
     const [viewMode, setViewMode] = useState<ViewMode>('week');
 
-    // Для Dnd
     const [activeClassroom, setActiveClassroom] = useState<Classroom | null>(null);
     const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 8 } }));
 
-    // Стейт модалки (теперь хранит и предвыбранную аудиторию)
     const [modalState, setModalState] = useState<{
         isOpen: boolean;
         date: Date | null;
@@ -50,7 +48,6 @@ export default function EventsPage() {
 
     const currentSchedule = useMemo(() => fullSchedule[selectedGroupId] || {}, [fullSchedule, selectedGroupId]);
 
-    // --- Helpers ---
     const getStartOfWeek = (date: Date) => {
         const d = new Date(date);
         const day = d.getDay();
@@ -70,7 +67,6 @@ export default function EventsPage() {
 
     const headerTitle = `${MONTH_NAMES[getStartOfWeek(currentDate).getMonth()]} ${getStartOfWeek(currentDate).getFullYear()}`;
 
-    // --- Dnd Handlers ---
     const handleDragStart = (event: any) => {
         if (event.active.data.current?.type === 'classroom') {
             setActiveClassroom(event.active.data.current.current as Classroom);
@@ -82,10 +78,8 @@ export default function EventsPage() {
         setActiveClassroom(null);
 
         if (over && active) {
-            // Разбираем ID ячейки
             const [dateStr, slotStr] = (over.id as string).split('|');
 
-            // Открываем модалку с уже выбранной аудиторией
             setModalState({
                 isOpen: true,
                 date: new Date(dateStr),
@@ -95,12 +89,10 @@ export default function EventsPage() {
         }
     };
 
-    // --- Click Handler ---
     const handleCellClick = (date: Date, slotId: number) => {
         const key = `${formatDateKey(date)}|${slotId}`;
         const existing = currentSchedule[key];
 
-        // Если занято - удаляем
         if (existing) {
             if (window.confirm('Очистить этот слот?')) {
                 assignLesson(key, 'clear', null);
@@ -108,7 +100,6 @@ export default function EventsPage() {
             return;
         }
 
-        // Если свободно - открываем пустую модалку
         setModalState({
             isOpen: true,
             date,
@@ -117,7 +108,6 @@ export default function EventsPage() {
         });
     };
 
-    // --- Save Handler ---
     const handleBook = (eventName: string, classroomId: string) => {
         if (modalState.date && modalState.slotId) {
             const key = `${formatDateKey(modalState.date)}|${modalState.slotId}`;
@@ -158,7 +148,7 @@ export default function EventsPage() {
                                 viewMode={viewMode}
                                 onCellClick={handleCellClick}
                                 formatDateKey={formatDateKey}
-                                activeDraggingTeacherId={null} // Здесь мы учителей не таскаем
+                                activeDraggingTeacherId={null}
                             />
                         </div>
                     </div>
@@ -174,7 +164,6 @@ export default function EventsPage() {
                     />
                 )}
 
-                {/* Оверлей при перетаскивании */}
                 <DragOverlay dropAnimation={null}>
                     {activeClassroom ? (
                         <div className="w-[300px] cursor-grabbing">

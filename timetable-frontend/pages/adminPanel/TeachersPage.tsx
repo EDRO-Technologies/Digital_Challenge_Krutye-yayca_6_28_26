@@ -152,7 +152,6 @@ export default function TeachersPage() {
     return (
         <Layout>
             <div className="w-full max-w-full h-[85vh] mx-auto flex flex-col gap-4">
-                {/* БЛОК ПОИСКА - Размещаем над списком */}
                 <div className="relative">
                     <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
                     <input

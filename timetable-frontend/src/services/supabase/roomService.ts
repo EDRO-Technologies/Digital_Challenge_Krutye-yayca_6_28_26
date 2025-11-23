@@ -14,7 +14,6 @@ export interface BackendBuilding {
     code: string;
 }
 
-// GET - Все корпуса
 export async function getAllBuildings(): Promise<BackendBuilding[]> {
     const { data, error } = await supabase
         .from('buildings')
@@ -117,7 +116,6 @@ export async function getAllRooms(): Promise<BackendRoom[]> {
     }));
 }
 
-// CREATE
 export async function createRoom(payload: { roomNumber: string; buildingId: number }) {
     const { data, error } = await supabase
         .from('rooms')
@@ -132,7 +130,6 @@ export async function createRoom(payload: { roomNumber: string; buildingId: numb
     return { success: true, roomId: data.id };
 }
 
-// UPDATE
 export async function updateRoom(roomId: string, payload: { roomNumber: string; buildingId: number }) {
     const { error } = await supabase
         .from('rooms')
@@ -146,7 +143,6 @@ export async function updateRoom(roomId: string, payload: { roomNumber: string; 
     return { success: true };
 }
 
-// DELETE
 export async function deleteRoom(roomId: string) {
     const { error } = await supabase
         .from('rooms')

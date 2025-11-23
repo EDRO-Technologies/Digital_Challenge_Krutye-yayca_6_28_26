@@ -1,4 +1,3 @@
-// src/lib/supabase.js
 import { createClient } from '@supabase/supabase-js';
 
 // В Vite переменные окружения должны начинаться с VITE_

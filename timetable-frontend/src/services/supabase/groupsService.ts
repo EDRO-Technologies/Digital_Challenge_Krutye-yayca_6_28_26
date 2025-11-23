@@ -7,7 +7,6 @@ export interface BackendGroup {
     institute_id?: number | null;
 }
 
-// GET - Все группы
 export async function getAllGroups(): Promise<BackendGroup[]> {
     const { data, error } = await supabase
         .from("groups")
@@ -76,11 +75,7 @@ export async function getGroupById(id: string): Promise<BackendGroup> {
 }
 
 // CREATE - Создать группу
-export async function createGroup(payload: {
-    name: string;
-    course: number;
-    instituteId?: number | null;
-}) {
+export async function createGroup(payload: { name: string; course: number; instituteId?: number | null }) {
     const { data, error } = await supabase
         .from("groups")
         .insert({
@@ -95,11 +90,7 @@ export async function createGroup(payload: {
     return { success: true, groupId: data.id };
 }
 
-// UPDATE - Обновить группу
-export async function updateGroup(
-    groupId: string,
-    payload: { name: string; course: number; instituteId?: number | null },
-) {
+export async function updateGroup(groupId: string, payload: { name: string; course: number; instituteId?: number | null }) {
     const { error } = await supabase
         .from("groups")
         .update({
@@ -113,7 +104,6 @@ export async function updateGroup(
     return { success: true };
 }
 
-// DELETE - Удалить группу
 export async function deleteGroup(groupId: string) {
     const { error } = await supabase.from("groups").delete().eq("id", groupId);
 

@@ -39,7 +39,6 @@ export default function GroupsPage() {
         return groups.filter(g => g.name.toLowerCase().includes(query));
     }, [groups, searchQuery]);
 
-    // Handlers
     const handleOpenCreate = () => {
         setEditingId(null);
         setFormData({ name: '', course: '1' });
@@ -92,7 +91,6 @@ export default function GroupsPage() {
     return (
         <Layout>
             <div className="w-full max-w-full h-[85vh] mx-auto flex flex-col gap-4">
-                {/* Поиск */}
                 <div className="relative">
                     <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
                     <input
@@ -127,7 +125,6 @@ export default function GroupsPage() {
                     </EntityList>
                 </div>
 
-                {/* Модалка */}
                 {isModalOpen && (
                     <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50">
                         <form onSubmit={handleSubmit} className="bg-white p-8 rounded-3xl w-[400px] flex flex-col gap-4 shadow-2xl animate-in fade-in zoom-in duration-200">

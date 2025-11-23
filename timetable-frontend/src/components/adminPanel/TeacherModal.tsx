@@ -44,7 +44,7 @@ export const TeacherModal: React.FC<TeacherModalProps> = ({
     };
 
     return (
-        <div className="absolute inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 rounded-[3rem]">
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50">
             <div className="bg-white p-6 rounded-3xl shadow-2xl w-[600px] flex flex-col max-h-[90vh] animate-in fade-in zoom-in duration-200">
 
                 <h3 className="text-2xl font-bold mb-1">Назначение пары</h3>
@@ -54,7 +54,6 @@ export const TeacherModal: React.FC<TeacherModalProps> = ({
 
                 <div className="flex gap-4 flex-1 overflow-hidden min-h-[300px]">
 
-                    {/* 1. ПРЕПОДАВАТЕЛИ */}
                     <div className="flex-1 flex flex-col w-1/2">
                         <h4 className="font-bold mb-2 text-gray-700 sticky top-0 bg-white z-10">1. Преподаватель</h4>
                         <div className="flex flex-col gap-2 overflow-y-auto custom-scrollbar pr-2">
@@ -76,7 +75,7 @@ export const TeacherModal: React.FC<TeacherModalProps> = ({
                                     >
                                         <div className="font-bold text-sm leading-tight">{teacher.name}</div>
                                         {conflict ? (
-                                            <div className="text-[10px] text-red-500 font-bold">Занят: {conflict}</div>
+                                            <div className="text-[10px] text-red-500 font-bold">Занят</div>
                                         ) : (
                                             <div className="text-[10px] text-gray-500">{teacher.subject}</div>
                                         )}
@@ -87,7 +86,6 @@ export const TeacherModal: React.FC<TeacherModalProps> = ({
                         </div>
                     </div>
 
-                    {/* 2. АУДИТОРИИ */}
                     <div className="flex-1 flex flex-col border-l pl-4 border-gray-100 w-1/2">
                         <h4 className="font-bold mb-2 text-gray-700 sticky top-0 bg-white z-10">2. Аудитория</h4>
                         <div className="flex flex-col gap-2 overflow-y-auto custom-scrollbar pr-2">
@@ -116,7 +114,7 @@ export const TeacherModal: React.FC<TeacherModalProps> = ({
                                     >
                                         <div className="font-bold text-sm">{room.name}</div>
                                         {conflict ? (
-                                            <div className="text-[10px] text-red-500 font-bold">Занята: {conflict}</div>
+                                            <div className="text-[10px] text-red-500 font-bold">Занята</div>
                                         ) : (
                                             <div className="text-[10px] text-gray-500">{room.capacity} мест</div>
                                         )}

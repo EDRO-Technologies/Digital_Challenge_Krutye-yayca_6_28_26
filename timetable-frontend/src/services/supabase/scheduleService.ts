@@ -1,5 +1,77 @@
 import { supabase } from '@/lib/supabase';
 
+export interface BackendLesson {
+    id: string;
+    title: string | null;
+    description: string | null;
+    room_id: string;
+    group_id: string;
+    speaker_id: string | null;
+    subject_id: string | null;
+    start_time: string;
+    end_time: string;
+    is_lesson: boolean;
+    created_at: string;
+    status?: number;
+    rooms?: {
+        room_number: string;
+        buildings?: {
+            code: string;
+        };
+    };
+    users?: {
+        full_name: string;
+    };
+    subjects?: {
+        name: string;
+    };
+}
+
+export async function getGroupSchedule(groupId: string): Promise<BackendLesson[]> {
+    try {
+        const { data, error } = await supabase
+            .from('schedule_items')
+            .select(`
+        id,
+        title,
+        description,
+        room_id,
+        group_id,
+        speaker_id,
+        subject_id,
+        start_time,
+        end_time,
+        is_lesson,
+        status,
+        created_at,
+        rooms (
+          room_number,
+          buildings (
+            code
+          )
+        ),
+        users:speaker_id (
+          full_name
+        ),
+        subjects (
+          name
+        )
+      `)
+            .eq('group_id', groupId)
+            .eq('is_lesson', true)
+            // вместо .neq('status', 10)
+            .or('status.is.null,status.eq.9')   // NULL или Активно (id=9)
+            .order('start_time', { ascending: true });
+
+        if (error) throw error;
+
+        return data as BackendLesson[];
+    } catch (error: any) {
+        console.error('Error fetching group schedule:', error);
+        throw error;
+    }
+}
+
 // Тип для элемента расписания с раскрытыми связями
 export interface BackendScheduleItem {
     id: string;

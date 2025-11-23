@@ -13,23 +13,22 @@ export interface BackendTeacher {
 }
 
 export async function getAllTeachersWithWorkload(): Promise<BackendTeacher[]> {
-    const { data, error } = await supabase
-        .from("users")
-        .select(
-            `
+    const {data, error} = await supabase
+        .from('users')
+        .select(`
       id,
       full_name,
       roles!inner ( name ),
       teacher_workload (
         planned_hours,
+        hours_left, 
         semester,
         start_year,
         subjects ( name )
       )
-    `,
-        )
-        .eq("roles.name", "Преподаватель")
-        .order("full_name", { ascending: true });
+    `)
+        .eq('roles.name', 'Преподаватель')
+        .order('full_name', {ascending: true});
 
     if (error) throw error;
 
@@ -37,7 +36,6 @@ export async function getAllTeachersWithWorkload(): Promise<BackendTeacher[]> {
     return data.map((teacher: any) => {
         const workloadItems = teacher.teacher_workload || [];
 
-        // Считаем общее количество часов
         const totalHours = workloadItems.reduce(
             (sum: number, item: any) => sum + (item.planned_hours || 0),
             0,
@@ -50,6 +48,7 @@ export async function getAllTeachersWithWorkload(): Promise<BackendTeacher[]> {
             workload: workloadItems.map((w: any) => ({
                 subject: w.subjects?.name || "Без предмета",
                 hours: w.planned_hours,
+                hoursLeft: w.hours_left,
                 semester: w.semester,
                 year: w.start_year,
             })),
@@ -121,10 +120,10 @@ export async function createTeacherWithWorkload(payload: CreateTeacherPayload) {
     // Вставьте сюда логику создания из предыдущего шага
     try {
         // 1. Получаем ID роли "Преподаватель"
-        const { data: roleData, error: roleError } = await supabase
-            .from("roles")
-            .select("id")
-            .eq("name", "Преподаватель")
+        const {data: roleData, error: roleError} = await supabase
+            .from('roles')
+            .select('id')
+            .eq('name', 'Преподаватель')
             .single();
 
         if (roleError || !roleData)
@@ -132,8 +131,8 @@ export async function createTeacherWithWorkload(payload: CreateTeacherPayload) {
         const teacherRoleId = roleData.id;
 
         // 2. Создаем пользователя
-        const { data: userData, error: userError } = await supabase
-            .from("users")
+        const {data: userData, error: userError} = await supabase
+            .from('users')
             .insert({
                 full_name: payload.fullName,
                 role_id: teacherRoleId,
@@ -147,7 +146,8 @@ export async function createTeacherWithWorkload(payload: CreateTeacherPayload) {
         // 3. Создаем нагрузку
         await createWorkloadEntries(newTeacherId, payload.workload);
 
-        return { success: true, teacherId: newTeacherId };
+        return {success: true, teacherId: newTeacherId};
+
     } catch (error: any) {
         console.error("Error creating teacher:", error);
         throw error;
@@ -160,17 +160,17 @@ export async function updateTeacherWithWorkload(
 ) {
     try {
         // 1. Обновляем имя пользователя
-        const { error: userError } = await supabase
-            .from("users")
-            .update({ full_name: payload.fullName })
-            .eq("id", teacherId);
+        const {error: userError} = await supabase
+            .from('users')
+            .update({full_name: payload.fullName})
+            .eq('id', teacherId);
 
         if (userError) throw userError;
 
         // 2. Обновляем нагрузку (Стратегия: Удалить все старое -> Создать новое)
         // Сначала удаляем старую нагрузку
-        const { error: deleteWorkloadError } = await supabase
-            .from("teacher_workload")
+        const {error: deleteWorkloadError} = await supabase
+            .from('teacher_workload')
             .delete()
             .eq("teacher_id", teacherId);
 
@@ -179,7 +179,7 @@ export async function updateTeacherWithWorkload(
         // 3. Создаем новую нагрузку
         await createWorkloadEntries(teacherId, payload.workload);
 
-        return { success: true };
+        return {success: true};
     } catch (error: any) {
         console.error("Error updating teacher:", error);
         throw error;
@@ -199,13 +199,13 @@ export async function deleteTeacher(teacherId: string) {
             .eq("teacher_id", teacherId);
 
         // Удаляем пользователя
-        const { error } = await supabase
-            .from("users")
+        const {error} = await supabase
+            .from('users')
             .delete()
             .eq("id", teacherId);
 
         if (error) throw error;
-        return { success: true };
+        return {success: true};
     } catch (error: any) {
         console.error("Error deleting teacher:", error);
         throw error;
@@ -221,29 +221,28 @@ async function createWorkloadEntries(
         let subjectId;
 
         // Ищем или создаем предмет
-        const { data: existingSubject } = await supabase
-            .from("subjects")
-            .select("id")
-            .eq("name", item.subjectName)
+        const {data: existingSubject} = await supabase
+            .from('subjects')
+            .select('id')
+            .eq('name', item.subjectName)
             .single();
 
         if (existingSubject) {
             subjectId = existingSubject.id;
         } else {
-            const { data: newSubject, error: createSubjectError } =
-                await supabase
-                    .from("subjects")
-                    .insert({ name: item.subjectName })
-                    .select()
-                    .single();
+            const {data: newSubject, error: createSubjectError} = await supabase
+                .from('subjects')
+                .insert({name: item.subjectName})
+                .select()
+                .single();
 
             if (createSubjectError) throw createSubjectError;
             subjectId = newSubject.id;
         }
 
         // Записываем нагрузку
-        const { error: workloadError } = await supabase
-            .from("teacher_workload")
+        const {error: workloadError} = await supabase
+            .from('teacher_workload')
             .insert({
                 teacher_id: teacherId,
                 subject_id: subjectId,

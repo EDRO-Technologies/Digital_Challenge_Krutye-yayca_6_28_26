@@ -13,12 +13,10 @@ interface ActionCardProps {
 const ActionCard: React.FC<ActionCardProps> = ({ teacher, isOverlay, isOverGrid }) => {
     const highlightedTeacherId = useScheduleStore(state => state.highlightedTeacherId);
     const setHighlightedTeacherId = useScheduleStore(state => state.setHighlightedTeacherId);
-
     // 1. ПОЛНЫЙ УНИКАЛЬНЫЙ ID (например "uuid-123::Алгебра")
     const uniqueId = String(teacher?.id || '');
 
     // Теперь мы сравниваем именно с ПОЛНЫМ ID
-    // Это значит, что "uuid::Алгебра" != "uuid::Геометрия"
     const isHighlighted = highlightedTeacherId === uniqueId;
 
     const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
@@ -39,14 +37,16 @@ const ActionCard: React.FC<ActionCardProps> = ({ teacher, isOverlay, isOverGrid 
         if (isHighlighted) {
             setHighlightedTeacherId(null);
         } else {
-            // Сохраняем ПОЛНЫЙ уникальный ID в стор
             setHighlightedTeacherId(uniqueId);
         }
     };
 
     // --- Прогресс бар ---
-    const total = teacher.totalHours || 1;
-    const current = teacher.hoursLeft || 0;
+    // АДАПТАЦИЯ ПОД НОВУЮ СТРУКТУРУ:
+    // Пытаемся взять planned_hours/hours_left, если их нет — берем totalHours/hoursLeft
+    const total = teacher.planned_hours ?? teacher.totalHours ?? 1; // Возьмет totalHours
+    const current = teacher.hours_left ?? teacher.hoursLeft ?? 0;   // Возьмет hoursLeft
+
     const percentage = Math.min(Math.max((current / total) * 100, 0), 100);
     const isFinished = current <= 0;
 
@@ -105,7 +105,7 @@ const ActionCard: React.FC<ActionCardProps> = ({ teacher, isOverlay, isOverGrid 
             : 'bg-green-100 text-green-700'
         }
         `}>
-          {current}ч
+          {current}
         </span>
                 <span className="text-[10px] text-gray-400 mt-0.5">
           из {total}
