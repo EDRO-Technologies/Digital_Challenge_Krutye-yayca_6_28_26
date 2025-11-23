@@ -1,0 +1,1 @@
+export type ModeSearchingType = 'group' | 'teacher' | 'cabinet';
